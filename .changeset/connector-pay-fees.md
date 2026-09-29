@@ -28,3 +28,11 @@ The approval screen now says whether this wallet pays the network fee. When
 it does not, the DUST shortfall is left off the "You pay" rows, because the
 wallet will not cover it. The new copy stays in English in de/fr/es until
 someone reviews the translations.
+
+`makeIntent` now returns a sealed transaction (signed, proven and bound)
+instead of the unproven output of `initSwap`. The connector API completes a
+swap with `balanceSealedTransaction`, and Lace-compatible services reject the
+unproven form with "expected header tag
+'midnight:transaction[v9](signature[v1],proof,pedersen-schnorr[v1]):'". In
+core, `buildSwapIntent` now returns a `FinalizedTransaction`. Because the
+intent is now proven, `makeIntent` needs the configured prover.

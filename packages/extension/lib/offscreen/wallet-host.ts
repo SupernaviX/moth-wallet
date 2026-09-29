@@ -857,7 +857,7 @@ export async function balanceTransaction(
 }
 
 // Build a swap intent (connector makeIntent). Needs a synced wallet to source
-// the offered inputs; the result is unproven, so no proof server is required.
+// the offered inputs and the proof server, since the intent is returned sealed.
 export async function makeIntent(
   seedHex: string,
   walletName: string,
@@ -867,6 +867,7 @@ export async function makeIntent(
   payFees: boolean,
 ): Promise<{ txHex: string }> {
   return trackOp(async () => {
+    await ensureProver(network);
     const wallet = await syncEnsure(seedHex, walletName, network);
     const intent = await buildSwapIntent(
       wallet.facade,

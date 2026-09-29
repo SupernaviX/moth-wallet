@@ -10,6 +10,7 @@ vi.mock('@midnight-ntwrk/ledger-v8', async (importOriginal) => ({
 
 import {
   balanceTransaction,
+  buildSwapIntent,
   buildTransferTransaction,
   deriveWalletKeys,
   type WalletKeys,
@@ -46,6 +47,19 @@ describe('buildTransferTransaction payFees', () => {
     const { facade } = facadeWith({ transferTransaction });
     await buildTransferTransaction(facade, keys, 'preprod', [request], undefined, undefined, payFees);
     expect(transferTransaction.mock.calls[0]![2]).toEqual({ ttl: expect.any(Date), payFees: expected });
+  });
+});
+
+describe('buildSwapIntent', () => {
+  it('returns the intent signed, proven and bound, forwarding payFees', async () => {
+    const recipe = { type: 'UNPROVEN_TRANSACTION', transaction: {} };
+    const initSwap = vi.fn().mockResolvedValue(recipe);
+    const { facade, signRecipe, finalizeRecipe } = facadeWith({ initSwap });
+    const inputs = [{ type: 'unshielded' as const, tokenId: NIGHT_TOKEN_ID, amount: 5n }];
+    await expect(buildSwapIntent(facade, keys, 'preprod', inputs, [], false)).resolves.toBe(finalized);
+    expect(initSwap.mock.calls[0]![3]).toEqual({ ttl: expect.any(Date), payFees: false });
+    expect(signRecipe).toHaveBeenCalledWith(recipe, expect.any(Function));
+    expect(finalizeRecipe).toHaveBeenCalledWith(recipe);
   });
 });
 

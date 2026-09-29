@@ -256,7 +256,7 @@ export interface OffscreenProtocol {
    *  `sealed` selects the deserialization stage, exactly as os/balanceTransaction does. */
   'os/txSummary'(data: { network: NetworkConfig; txHex: string; sealed: boolean }): TxSummaryDTO;
 
-  /** Build a swap intent (`makeIntent`); returns the unproven, unbound tx hex. */
+  /** Build, prove and seal a swap intent (`makeIntent`); returns hex. */
   'os/makeIntent'(data: {
     seedHex: string;
     walletName: string;

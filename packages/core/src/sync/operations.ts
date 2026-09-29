@@ -376,10 +376,8 @@ function isNothingToBalance(error: unknown): boolean {
 
 /**
  * Build a swap intent (connector `makeIntent`): the wallet's half of a swap,
- * providing `inputs` (spent) and `outputs` (sent to recipients). Returns the
- * raw unproven, unbound transaction from the SDK's `initSwap` — deliberately
- * NOT proven or bound, so the dApp can combine it with the counterparty's half
- * before the combined transaction is proven, balanced, and submitted.
+ * providing `inputs` (spent) and `outputs` (sent to recipients). Returns it sealed,
+ * as the counterparty completes it with `balanceSealedTransaction`.
  *
  * NOTE: the connector's `intentId` option is not honored — the SDK's `initSwap`
  * exposes no segment-id control, so callers cannot pin the intent's id or opt
@@ -393,8 +391,9 @@ export async function buildSwapIntent(
   outputs: SendRequest[],
   payFees: boolean,
   onProgress?: (stage: TxStage) => void
-): Promise<ledger.UnprovenTransaction> {
+): Promise<FinalizedTransaction> {
   setNetworkId(networkId);
+  const ks = createKeystore(keys.nightExternalKey, networkId);
 
   const swapInputs: CombinedSwapInputs = {};
   for (const input of inputs) {
@@ -423,7 +422,10 @@ export async function buildSwapIntent(
     {shieldedSecretKeys: keys.shieldedSecretKeys, dustSecretKey: keys.dustSecretKey},
     {ttl, payFees}
   );
-  return recipe.transaction;
+
+  onProgress?.('proving');
+  const signed = await facade.signRecipe(recipe, (payload: Uint8Array) => ks.signData(payload));
+  return facade.finalizeRecipe(signed);
 }
 
 /**
