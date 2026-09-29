@@ -799,6 +799,7 @@ export async function transferBuild(
   walletName: string,
   network: NetworkConfig,
   requests: TransferRequestDTO[],
+  payFees: boolean,
 ): Promise<{ txHex: string }> {
   return trackOp(async () => {
     await ensureProver(network);
@@ -809,6 +810,8 @@ export async function transferBuild(
       network.id,
       toRequests(requests),
       (stage) => emit('os/eventTxStage', stage),
+      undefined,
+      payFees,
     );
     return { txHex: toHex(finalized.serialize()) };
   });
@@ -835,6 +838,7 @@ export async function balanceTransaction(
   network: NetworkConfig,
   txHex: string,
   sealed: boolean,
+  payFees: boolean,
 ): Promise<{ txHex: string }> {
   return trackOp(async () => {
     await ensureProver(network);
@@ -845,6 +849,7 @@ export async function balanceTransaction(
       network.id,
       fromHex(txHex),
       sealed,
+      payFees,
       (stage) => emit('os/eventTxStage', stage),
     );
     return { txHex: toHex(finalized.serialize()) };

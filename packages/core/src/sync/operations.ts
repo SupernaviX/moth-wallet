@@ -17,6 +17,8 @@ import type {
   TokenTransfer,
   CombinedSwapInputs,
   CombinedSwapOutputs,
+  FinalizedTransactionRecipe,
+  UnboundTransactionRecipe,
 } from '@midnightntwrk/wallet-sdk/facade';
 import {HDWallet, Roles} from '@midnightntwrk/wallet-sdk/hd';
 import {setNetworkId} from '@midnight-ntwrk/midnight-js/network-id';
@@ -224,7 +226,8 @@ export async function buildTransferTransaction(
   networkId: string,
   requests: SendRequest[],
   onProgress?: (stage: TxStage) => void,
-  ttlOverride?: Date
+  ttlOverride?: Date,
+  payFees = true
 ): Promise<FinalizedTransaction> {
   setNetworkId(networkId);
   const ks = createKeystore(keys.nightExternalKey, networkId);
@@ -235,7 +238,7 @@ export async function buildTransferTransaction(
   const recipe = await facade.transferTransaction(
     transfers,
     {shieldedSecretKeys: keys.shieldedSecretKeys, dustSecretKey: keys.dustSecretKey},
-    {ttl}
+    {ttl, payFees}
   );
 
   onProgress?.('proving');
@@ -310,6 +313,7 @@ export async function sendTokensWithKeys(
  * - unsealed → Transaction<SignatureEnabled, Proof, PreBinding> (UnboundTransaction)
  *
  * The prove/finalize tail is the same as {@link buildTransferTransaction}.
+ * With `payFees` false the wallet adds no DUST, leaving the fee to another payer.
  */
 export async function balanceTransaction(
   facade: WalletFacade,
@@ -317,39 +321,57 @@ export async function balanceTransaction(
   networkId: string,
   txBytes: Uint8Array,
   sealed: boolean,
+  payFees = true,
   onProgress?: (stage: TxStage) => void
 ): Promise<FinalizedTransaction> {
   setNetworkId(networkId);
   const ks = createKeystore(keys.nightExternalKey, networkId);
   const secretKeys = {shieldedSecretKeys: keys.shieldedSecretKeys, dustSecretKey: keys.dustSecretKey};
-  const ttl = new Date(Date.now() + 30 * 60_000);
+  const options = {
+    ttl: new Date(Date.now() + 30 * 60_000),
+    tokenKindsToBalance: payFees ? ('all' as const) : (['shielded', 'unshielded'] as ('shielded' | 'unshielded')[]),
+  };
 
   onProgress?.('building');
-  const recipe = sealed
-    ? await facade.balanceFinalizedTransaction(
-        ledger.Transaction.deserialize<ledger.SignatureEnabled, ledger.Proof, ledger.Binding>(
-          'signature',
-          'proof',
-          'binding',
-          txBytes
-        ),
-        secretKeys,
-        {ttl}
-      )
-    : await facade.balanceUnboundTransaction(
-        ledger.Transaction.deserialize<ledger.SignatureEnabled, ledger.Proof, ledger.PreBinding>(
-          'signature',
-          'proof',
-          'pre-binding',
-          txBytes
-        ),
-        secretKeys,
-        {ttl}
-      );
+  let recipe: FinalizedTransactionRecipe | UnboundTransactionRecipe;
+  if (sealed) {
+    const tx = ledger.Transaction.deserialize<ledger.SignatureEnabled, ledger.Proof, ledger.Binding>(
+      'signature',
+      'proof',
+      'binding',
+      txBytes
+    );
+    try {
+      recipe = await facade.balanceFinalizedTransaction(tx, secretKeys, options);
+    } catch (error) {
+      // A sealed tx that needs no token balancing is already final when the wallet skips fees.
+      if (!payFees && isNothingToBalance(error)) return tx;
+      throw error;
+    }
+  } else {
+    const tx = ledger.Transaction.deserialize<ledger.SignatureEnabled, ledger.Proof, ledger.PreBinding>(
+      'signature',
+      'proof',
+      'pre-binding',
+      txBytes
+    );
+    try {
+      recipe = await facade.balanceUnboundTransaction(tx, secretKeys, options);
+    } catch (error) {
+      // The SDK's recipe type allows an unbound base with no balancing tx; finalizing it just binds.
+      if (!payFees && isNothingToBalance(error)) recipe = {type: 'UNBOUND_TRANSACTION', baseTransaction: tx};
+      else throw error;
+    }
+  }
 
   onProgress?.('proving');
   const signed = await facade.signRecipe(recipe, (payload: Uint8Array) => ks.signData(payload));
   return facade.finalizeRecipe(signed);
+}
+
+// The facade throws this when every requested token kind is already balanced.
+function isNothingToBalance(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('No balancing transaction was created');
 }
 
 /**

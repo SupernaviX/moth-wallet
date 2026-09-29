@@ -229,6 +229,7 @@ export interface OffscreenProtocol {
     walletName: string;
     network: NetworkConfig;
     requests: TransferRequestDTO[];
+    payFees: boolean;
   }): { txHex: string };
 
   /** Deserialize + submit an already-proven transaction (`submitTransaction`). */
@@ -247,6 +248,7 @@ export interface OffscreenProtocol {
     network: NetworkConfig;
     txHex: string;
     sealed: boolean;
+    payFees: boolean;
   }): { txHex: string };
 
   /** Read what a dApp-supplied transaction would take from (and return to) the
