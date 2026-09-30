@@ -12,6 +12,9 @@ DUST, leaving the network fee to another party. This lets a dApp or a
 counterparty sponsor fees. Leaving the option out, or passing `true`, still
 means the wallet pays. A non-boolean `payFees` is rejected.
 
+This applies to the extension's dApp connector only. The daemon, CLI and TUI
+have no connector, so their transactions still always pay their own fees.
+
 In core, `buildTransferTransaction`, `buildSwapIntent` and
 `balanceTransaction` each take a trailing `options` object, which is passed
 on to the matching facade call. `buildTransferTransaction` takes
