@@ -175,7 +175,7 @@ export function Approval({
           <div className="text-center">
             <h1 className="m-0 font-display text-[26px] font-extrabold leading-tight">{t('approval_approveTitle')}</h1>
             <p className="m-0 pt-1.5 text-[13.5px] text-muted-foreground">
-              {(approval.payload as BalanceApprovalPayload).payFees
+              {(approval.payload as BalanceApprovalPayload).payFees !== false
                 ? t('approval_balanceSubtitle', [host])
                 : t('approval_balanceSubtitleNoFees', [host])}
             </p>
@@ -252,7 +252,7 @@ export function Approval({
 }
 
 function feeValue(payFees: boolean, dustLabel: string): string {
-  return payFees ? t('approval_paidIn', [dustLabel]) : t('approval_notPaidByWallet');
+  return payFees !== false ? t('approval_paidIn', [dustLabel]) : t('approval_notPaidByWallet');
 }
 
 /**
@@ -284,7 +284,7 @@ function BalanceSummary({
     return (
       <Card className="p-4">
         <p className="m-0 text-[13.5px] text-muted-foreground">
-          {payload.payFees ? t('approval_spendsNothing') : t('approval_spendsNothingNoFees')}
+          {payload.payFees !== false ? t('approval_spendsNothing') : t('approval_spendsNothingNoFees')}
         </p>
       </Card>
     );
