@@ -810,8 +810,7 @@ export async function transferBuild(
       network.id,
       toRequests(requests),
       (stage) => emit('os/eventTxStage', stage),
-      undefined,
-      payFees,
+      { payFees },
     );
     return { txHex: toHex(finalized.serialize()) };
   });
@@ -849,8 +848,8 @@ export async function balanceTransaction(
       network.id,
       fromHex(txHex),
       sealed,
-      payFees,
       (stage) => emit('os/eventTxStage', stage),
+      { tokenKindsToBalance: payFees ? 'all' : ['shielded', 'unshielded'] },
     );
     return { txHex: toHex(finalized.serialize()) };
   });
@@ -875,8 +874,8 @@ export async function makeIntent(
       network.id,
       toSwapInputs(inputs),
       toRequests(outputs),
-      payFees,
       (stage) => emit('os/eventTxStage', stage),
+      { payFees },
     );
     return { txHex: toHex(intent.serialize()) };
   });

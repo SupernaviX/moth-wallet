@@ -12,11 +12,15 @@ DUST, leaving the network fee to another party. This lets a dApp or a
 counterparty sponsor fees. Leaving the option out, or passing `true`, still
 means the wallet pays. A non-boolean `payFees` is rejected.
 
-In core, `buildTransferTransaction` takes a trailing `payFees` argument
-(default `true`), and `balanceTransaction` takes `payFees` before
-`onProgress`. The SDK has no fee flag for balancing, so fee-less balancing
-sets `tokenKindsToBalance` to shielded and unshielded tokens only. If the
-transaction is already balanced apart from the fee, the SDK throws "No
+In core, `buildTransferTransaction`, `buildSwapIntent` and
+`balanceTransaction` each take a trailing `options` object, which is passed
+on to the matching facade call. `buildTransferTransaction` takes
+`{ ttl, payFees }`; this replaces its old trailing `ttlOverride` argument.
+`buildSwapIntent` takes `{ payFees }`. `balanceTransaction` takes
+`{ tokenKindsToBalance }`, and core now exports the `TokenKindsToBalance`
+type. The balancing calls have no fee flag, so the extension asks for
+shielded and unshielded tokens only when a dApp passes `payFees: false`. If
+`dust` is left out and the transaction needs nothing else, the SDK throws "No
 balancing transaction was created". In that case a sealed transaction is
 returned unchanged and an unsealed one is only bound.
 
