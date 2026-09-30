@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WalletFacade } from '@midnightntwrk/wallet-sdk/facade';
+import { WalletFacade } from '@midnightntwrk/wallet-sdk/facade';
 
 // Stands in for ledger deserialization so the facade sees a known object.
 const dappTx = { dapp: true };
@@ -114,4 +114,38 @@ describe('balanceTransaction tokenKindsToBalance', () => {
       ).rejects.toBe(nothingToBalance);
     },
   );
+});
+
+// Runs the SDK's own balancing with sub-wallets that find nothing to do, so a
+// reworded "nothing to balance" error fails here rather than in production.
+describe('balanceTransaction against the real facade', () => {
+  function realFacade() {
+    const facade = Object.create(WalletFacade.prototype) as WalletFacade;
+    const finalizeRecipe = vi.fn().mockResolvedValue(finalized);
+    Object.assign(facade, {
+      shielded: { balanceTransaction: vi.fn().mockResolvedValue(undefined) },
+      unshielded: {
+        balanceFinalizedTransaction: vi.fn().mockResolvedValue(undefined),
+        balanceUnboundTransaction: vi.fn().mockResolvedValue(undefined),
+      },
+      dust: { balanceTransactions: vi.fn() },
+      signRecipe: vi.fn(async (recipe: unknown) => recipe),
+      finalizeRecipe,
+    });
+    return { facade, finalizeRecipe };
+  }
+  const noFees = { tokenKindsToBalance: ['shielded', 'unshielded'] as TokenKindsToBalance };
+
+  it('returns a sealed transaction unchanged', async () => {
+    const { facade } = realFacade();
+    await expect(balanceTransaction(facade, keys, 'preprod', new Uint8Array(), true, undefined, noFees)).resolves.toBe(
+      dappTx,
+    );
+  });
+
+  it('binds an unsealed transaction without a balancing segment', async () => {
+    const { facade, finalizeRecipe } = realFacade();
+    await balanceTransaction(facade, keys, 'preprod', new Uint8Array(), false, undefined, noFees);
+    expect(finalizeRecipe).toHaveBeenCalledWith({ type: 'UNBOUND_TRANSACTION', baseTransaction: dappTx });
+  });
 });

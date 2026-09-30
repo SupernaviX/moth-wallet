@@ -377,7 +377,7 @@ export async function balanceTransaction(
   return facade.finalizeRecipe(signed);
 }
 
-// The facade throws this when every requested token kind is already balanced.
+// Matches wallet-sdk-facade 4.1.0's error when nothing needs balancing; a contract test runs the real facade.
 function isNothingToBalance(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('No balancing transaction was created');
 }
